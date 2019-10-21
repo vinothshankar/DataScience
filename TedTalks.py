@@ -1,4 +1,4 @@
-cd cdimport mysql.connector
+import mysql.connector
 import ast
 import pandas as pd
 import sqlalchemy as sqlorm
@@ -102,4 +102,5 @@ def getTopViewsByTags():
 db_connection = dbConnection()
 tedmain = getAll(db_connection)
 publishedYearsCounts,publishedMonthsCounts=getPublishedYearsMonths(tedmain)
+
 
