@@ -102,5 +102,5 @@ def getTopViewsByTags():
 db_connection = dbConnection()
 tedmain = getAll(db_connection)
 publishedYearsCounts,publishedMonthsCounts=getPublishedYearsMonths(tedmain)
-
+showTopFiveTags()
 
