@@ -2,17 +2,22 @@ from gazpacho import get, Soup
 import datetime
 from pandas.io.html import read_html
 import pandas as pd
+import mysql.connector
 
 
 MonthNumber={'JANUARY':1,'FEBRUARY':2,'MARCH':3,'APRIL':4,'MAY':5,'JUNE':6,'JULY':7,'AUGUST':8,'SEPTEMBER':9,'OCTOBER':10,'NOVEMBER':11,'DECEMBER':12}
-
+mydb = mysql.connector.connect(
+  host="localhost",
+  user="root",
+  passwd="root",
+  database="webscrap"
+)
 URL = "https://en.wikipedia.org/wiki/Taoiseach"
 html = get(URL)
 soup = Soup(html)
 tables = soup.find("table")
 president_data = tables[2].find("tr")
-
-
+Taoiseach=[]
 
  
 def getDate(day,pyear):
@@ -60,51 +65,60 @@ def getVPDailDF():
     df=df.drop([0,1]) 
     return df
 
+def mainMethod():
+    for i,row in enumerate(president_data[2:]):
+        partyName=''
+        constituency=""
+        officeFromDate=""
+        officeToDate=""
+        DOB=""
+        presidentName=""
+        VicePresident=""
+        Dail=""
+        r = row.find("td")
+        if(i != 9 and row.find("th")):
+            rowspan=1
+            if(i==0):
+                partyName=president_data[3].find('td')[0].text+','+r[4].text   
+            else:
+                partyName=r[4].text
+            
+            if(r[1].attrs.get('rowspan')):
+                rowspan=int(r[0].attrs['rowspan'])
 
-dfVP=getVPDailDF()
+            VicePresident,Dail=getVicePresident(i,rowspan)
+            presidentName=r[1].text
+            DOB=getDOB(r[1].find('a')[0].attrs['href'])
+            span=r[1].find("span")
+            
+            if(type(span.find("a")) is list):
+                for i in span.find("a"):
+                    constituency+=i.text+','
+            else:
+                constituency=span.find("a").text
 
+            officeFromDate=str(getDate(str(r[2].text),str(r[2])))
+            if(str(r[3]).find('br')>0):
+                officeToDate=str(getDate(str(r[3].text),str(r[3])))
+            else:
+                officeToDate='Incumbent'
 
-for i,row in enumerate(president_data[2:]):
-    partyName=''
-    constituency=""
-    officeFromDate=""
-    officeToDate=""
-    DOB=""
-    presidentName=""
-    VicePresident=""
-    Dail=""
-    r = row.find("td")
-    if(i != 9 and row.find("th")):
-        rowspan=1
-        if(i==0):
-            partyName=president_data[3].find('td')[0].text+','+r[4].text   
-        else:
-            partyName=r[4].text
-        
-        if(r[1].attrs.get('rowspan')):
-            rowspan=int(r[0].attrs['rowspan'])
+            Taoiseach.append((presidentName,DOB,constituency.rstrip(','),officeFromDate,officeToDate,partyName,VicePresident,Dail))
 
-        VicePresident,Dail=getVicePresident(i,rowspan)
-        presidentName=r[1].text
-        nameLink=str(r[1].find('a')[0])
-        DOB=getDOB(nameLink[nameLink.find('<a href="')+9:nameLink.find('" title')])
-        span=r[1].find("span")
-        
-        if(type(span.find("a")) is list):
-            for i in span.find("a"):
-                constituency+=i.text+','
-        else:
-            constituency=span.find("a").text
-
-        officeFromDate=str(getDate(str(r[2].text),str(r[2])))
-        if(str(r[3]).find('br')>0):
-            officeToDate=str(getDate(str(r[3].text),str(r[3])))
-        else:
-            officeToDate='Incumbent'
-
-        print(presidentName+','+partyName+','+type(officeFromDate)+','+officeToDate+','+constituency+','+type(DOB)+','+VicePresident+','+Dail)
-        print('-------------------------------------------------------------')
+def insertTaoiseach():
+    mycursor = mydb.cursor()
+    sql = "INSERT INTO taoiseach (presidentname,dob,constituency,officefrom,officeto,partyname,vicepresident,dail) VALUES (%s, %s,%s,%s,%s,%s,%s,%s)"
+    mycursor.executemany(sql, Taoiseach)
+    mydb.commit()
+    print(mycursor.rowcount, "was inserted.")
     
 
+
+
+
+
+dfVP=getVPDailDF()  
+mainMethod()
+insertTaoiseach()
 
 #def dateconvert(dateconvert)
